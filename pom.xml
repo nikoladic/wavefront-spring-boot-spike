@@ -26,6 +26,7 @@
 
 	<modules>
 		<module>wavefront-spring-boot-autoconfigure</module>
+		<module>wavefront-spring-boot-starter</module>
 	</modules>
 
 	<build>
@@ -136,6 +137,11 @@
 
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>com.wavefront.spring</groupId>
+				<artifactId>wavefront-spring-boot-autoconfigure</artifactId>
+				<version>0.0.1-SNAPSHOT</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-dependencies</artifactId>
