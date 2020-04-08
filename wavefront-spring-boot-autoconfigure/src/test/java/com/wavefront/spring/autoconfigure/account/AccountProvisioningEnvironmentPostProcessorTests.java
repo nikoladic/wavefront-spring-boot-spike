@@ -130,7 +130,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	@Test
 	void defaultTokenFile() {
 		Resource localApiTokenResource = new AccountProvisioningEnvironmentPostProcessor().getLocalApiTokenResource();
-		assertThat(localApiTokenResource.getFilename()).isEqualTo(".wavefront-token");
+		assertThat(localApiTokenResource.getFilename()).isEqualTo(".wavefront_token");
 	}
 
 	@Test

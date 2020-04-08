@@ -141,7 +141,7 @@ class AccountProvisioningEnvironmentPostProcessor
 	}
 
 	protected Resource getLocalApiTokenResource() {
-		return new PathResource(Paths.get(System.getProperty("user.home"), ".wavefront-token"));
+		return new PathResource(Paths.get(System.getProperty("user.home"), ".wavefront_token"));
 	}
 
 	protected AccountInfo provisionAccount(AccountProvisioningClient client, String clusterUri,
