@@ -84,7 +84,7 @@ class AccountProvisioningEnvironmentPostProcessor
 				"%nA Wavefront account has been provisioned successfully and the API token has been saved to disk.%n%n"));
 		sb.append(String.format(
 				"To configure Spring Boot to use this account moving forward, add the following to your configuration:%n%n"));
-		sb.append(String.format("\t\t%s=%s%n%n", API_TOKEN_PROPERTY, accountInfo.getApiToken()));
+		sb.append(String.format("\t%s=%s%n%n", API_TOKEN_PROPERTY, accountInfo.getApiToken()));
 		sb.append(String.format("Connect to your Wavefront dashboard using this one-time use link:%n%s%n",
 				accountInfo.determineLoginUrl(clusterUri)));
 		System.out.println(sb.toString());
