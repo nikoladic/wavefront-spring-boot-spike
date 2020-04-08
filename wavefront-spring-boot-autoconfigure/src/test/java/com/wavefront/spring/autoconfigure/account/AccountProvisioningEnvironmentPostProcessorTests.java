@@ -23,8 +23,11 @@ import java.nio.file.Path;
 import java.util.function.BiFunction;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -41,6 +44,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
  *
  * @author Stephane Nicoll
  */
+@ExtendWith(OutputCaptureExtension.class)
 class AccountProvisioningEnvironmentPostProcessorTests {
 
 	private static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
@@ -68,7 +72,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	}
 
 	@Test
-	void apiTokenIsRegisteredWithNewAccountWhenTokenFileDoesNotExist(@TempDir Path directory) {
+	void apiTokenIsRegisteredWithNewAccountWhenTokenFileDoesNotExist(@TempDir Path directory, CapturedOutput output) {
 		Path apiTokenFile = directory.resolve("test.token");
 		assertThat(apiTokenFile).doesNotExist();
 		MockEnvironment environment = new MockEnvironment();
@@ -80,6 +84,62 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 		assertThat(apiTokenFile).exists();
 		assertThat(apiTokenFile).hasContent("abc-def");
+		assertThat(output).contains("https://wavefront.surf", "https://wavefront.surf/us/test",
+				API_TOKEN_PROPERTY + "=abc-def");
+	}
+
+	@Test
+	void apiTokenRegistrationFailureLogsWarning(CapturedOutput output) {
+		Resource apiTokenResource = mock(Resource.class);
+		given(apiTokenResource.isReadable()).willReturn(false);
+		MockEnvironment environment = new MockEnvironment();
+		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource, (clusterInfo, applicationInfo) -> {
+			throw new AccountProvisioningFailedException("test message");
+		}).postProcessEnvironment(environment, null);
+		verify(apiTokenResource).isReadable();
+		verifyNoMoreInteractions(apiTokenResource);
+		assertThat(output).contains("https://wavefront.surf", "test message");
+	}
+
+	@Test
+	void apiTokenWithIOExceptionReadingTokenFileDoesNotFail() throws IOException {
+		Resource apiTokenResource = mock(Resource.class);
+		given(apiTokenResource.isReadable()).willReturn(true);
+		given(apiTokenResource.isFile()).willReturn(false);
+		given(apiTokenResource.getInputStream()).willThrow(new IOException("test exception"));
+		MockEnvironment environment = new MockEnvironment();
+		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource,
+				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
+						null);
+		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
+	}
+
+	@Test
+	void apiTokenWithIOExceptionWritingTokenFileDoesNotFail() throws IOException {
+		Resource apiTokenResource = mock(Resource.class);
+		given(apiTokenResource.isReadable()).willReturn(false);
+		given(apiTokenResource.isFile()).willReturn(true);
+		given(apiTokenResource.getFile()).willThrow(new IOException("test exception"));
+		MockEnvironment environment = new MockEnvironment();
+		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource,
+				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
+						null);
+		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
+	}
+
+	@Test
+	void defaultTokenFile() {
+		Resource localApiTokenResource = new AccountProvisioningEnvironmentPostProcessor().getLocalApiTokenResource();
+		assertThat(localApiTokenResource.getFilename()).isEqualTo(".wavefront-token");
+	}
+
+	@Test
+	void provisionAccountInvokeClientWithSuppliedArguments() {
+		AccountProvisioningClient client = mock(AccountProvisioningClient.class);
+		String clusterUri = "https://example.com";
+		ApplicationInfo applicationInfo = mock(ApplicationInfo.class);
+		new AccountProvisioningEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationInfo);
+		verify(client).provisionAccount(clusterUri, applicationInfo);
 	}
 
 	static class TestAccountProvisioningEnvironmentPostProcessor extends AccountProvisioningEnvironmentPostProcessor {

@@ -23,15 +23,8 @@ package com.wavefront.spring.autoconfigure.account;
  */
 class AccountProvisioningFailedException extends RuntimeException {
 
-	private final String clusterUri;
-
-	AccountProvisioningFailedException(String clusterUri, String message) {
+	AccountProvisioningFailedException(String message) {
 		super(message);
-		this.clusterUri = clusterUri;
-	}
-
-	String getClusterUri() {
-		return this.clusterUri;
 	}
 
 }

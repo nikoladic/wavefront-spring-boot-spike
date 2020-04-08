@@ -44,11 +44,11 @@ class AccountInfo {
 
 	/**
 	 * Determine the one time login url based on the specified Wavefront cluster.
-	 * @param clusterUrl the url of the cluster
+	 * @param clusterUri the uri of the cluster
 	 * @return the one time login url for that account
 	 */
-	String determineLoginUrl(String clusterUrl) {
-		return UriComponentsBuilder.fromUriString(clusterUrl).path(this.loginUri).build().toUriString();
+	String determineLoginUrl(String clusterUri) {
+		return UriComponentsBuilder.fromUriString(clusterUri).path(this.loginUri).build().toUriString();
 	}
 
 }

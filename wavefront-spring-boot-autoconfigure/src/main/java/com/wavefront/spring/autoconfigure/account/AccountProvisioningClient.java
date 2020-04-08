@@ -24,7 +24,7 @@ import org.apache.commons.logging.Log;
 
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.web.client.HttpClientErrorException.NotAcceptable;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -72,8 +72,8 @@ class AccountProvisioningClient {
 			Map<String, Object> content = new BasicJsonParser().parseMap(json);
 			return new AccountInfo((String) content.get("token"), (String) content.get("url"));
 		}
-		catch (NotAcceptable ex) {
-			throw new AccountProvisioningFailedException(clusterUri, ex.getResponseBodyAsString());
+		catch (HttpClientErrorException ex) {
+			throw new AccountProvisioningFailedException(ex.getResponseBodyAsString());
 		}
 	}
 

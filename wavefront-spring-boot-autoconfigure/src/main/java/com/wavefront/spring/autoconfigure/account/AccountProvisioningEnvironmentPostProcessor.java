@@ -46,15 +46,17 @@ import org.springframework.util.StringUtils;
 class AccountProvisioningEnvironmentPostProcessor
 		implements EnvironmentPostProcessor, ApplicationListener<ApplicationPreparedEvent> {
 
-	private static final String WAVEFRONT_PROPERTIES_PREFIX = "management.metrics.export.wavefront.";
+	static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
+
+	static final String URI_PROPERTY = "management.metrics.export.wavefront.uri";
 
 	private final DeferredLog logger = new DeferredLog();
 
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-		String apiToken = environment.getProperty(WAVEFRONT_PROPERTIES_PREFIX + "api-token");
+		String apiToken = environment.getProperty(API_TOKEN_PROPERTY);
 		if (StringUtils.hasText(apiToken)) {
-			this.logger.debug("Wavefront api token already set, no need to auto-negotiate one");
+			this.logger.debug("Wavefront api token already set, no need to negotiate one");
 			return;
 		}
 		Resource localApiTokenResource = getLocalApiTokenResource();
@@ -64,10 +66,37 @@ class AccountProvisioningEnvironmentPostProcessor
 			registerApiToken(environment, existingApiToken);
 		}
 		else {
-			AccountInfo accountInfo = autoNegotiateAccount(environment);
-			registerApiToken(environment, accountInfo.getApiToken());
-			writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
+			String clusterUri = environment.getProperty(URI_PROPERTY, "https://wavefront.surf");
+			try {
+				AccountInfo accountInfo = autoNegotiateAccount(environment, clusterUri);
+				registerApiToken(environment, accountInfo.getApiToken());
+				writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
+				logAccountProvisioning(clusterUri, accountInfo);
+			}
+			catch (Exception ex) {
+				logAccountProvisioningFailure(clusterUri, ex.getMessage());
+			}
 		}
+	}
+
+	private void logAccountProvisioning(String clusterUri, AccountInfo accountInfo) {
+		StringBuilder sb = new StringBuilder(String.format(
+				"%nA Wavefront account has been provisioned successfully and the API token has been saved to disk.%n%n"));
+		sb.append(String.format(
+				"To configure Spring Boot to use this account moving forward, add the following to your configuration:%n%n"));
+		sb.append(String.format("\t\t%s=%s%n%n", API_TOKEN_PROPERTY, accountInfo.getApiToken()));
+		sb.append(String.format("Connect to your Wavefront dashboard using this one-time use link:%n%s%n",
+				accountInfo.determineLoginUrl(clusterUri)));
+		System.out.println(sb.toString());
+	}
+
+	private void logAccountProvisioningFailure(String clusterUri, String message) {
+		StringBuilder sb = new StringBuilder(
+				String.format("%nFailed to auto-negotiate a Wavefront api token from %s.", clusterUri));
+		if (StringUtils.hasText(message)) {
+			sb.append(String.format(" The error was:%n%n%s%n%n", message));
+		}
+		System.out.println(sb.toString());
 	}
 
 	@Override
@@ -98,8 +127,7 @@ class AccountProvisioningEnvironmentPostProcessor
 		}
 	}
 
-	private AccountInfo autoNegotiateAccount(ConfigurableEnvironment environment) {
-		String clusterUri = environment.getProperty(WAVEFRONT_PROPERTIES_PREFIX + "uri", "https://wavefront.surf");
+	private AccountInfo autoNegotiateAccount(ConfigurableEnvironment environment, String clusterUri) {
 		RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
 		AccountProvisioningClient client = new AccountProvisioningClient(this.logger, restTemplateBuilder);
 		ApplicationInfo applicationInfo = new ApplicationInfo(environment);
@@ -108,7 +136,7 @@ class AccountProvisioningEnvironmentPostProcessor
 
 	private void registerApiToken(ConfigurableEnvironment environment, String apiToken) {
 		MapPropertySource wavefrontPropertySource = new MapPropertySource("wavefront",
-				Collections.singletonMap(WAVEFRONT_PROPERTIES_PREFIX + "api-token", apiToken));
+				Collections.singletonMap(API_TOKEN_PROPERTY, apiToken));
 		environment.getPropertySources().addLast(wavefrontPropertySource);
 	}
 
