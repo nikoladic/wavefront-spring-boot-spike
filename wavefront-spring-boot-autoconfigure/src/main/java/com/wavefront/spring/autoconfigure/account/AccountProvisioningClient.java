@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-package com.wavefront.spring.autoconfigure;
+package com.wavefront.spring.autoconfigure.account;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 
+import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException.NotAcceptable;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Negotiate a Wavefront api token based on an {@link ApplicationInfo}.
+ * Negotiate a Wavefront {@linkplain AccountInfo account} based on an
+ * {@link ApplicationInfo}.
  *
  * @author Stephane Nicoll
  */
@@ -43,8 +46,17 @@ class AccountProvisioningClient {
 				.setReadTimeout(Duration.ofSeconds(10)).build();
 	}
 
-	String provisionAccount(ApplicationInfo applicationInfo) {
-		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString("https://wavefront.surf")
+	/**
+	 * Provision an account for the specified Wavefront cluster and application
+	 * information.
+	 * @param clusterUri the URI of the Wavefront cluster
+	 * @param applicationInfo the {@link ApplicationInfo} to use
+	 * @return the provisioned account
+	 * @throws AccountProvisioningFailedException if the cluster does not support freemium
+	 * accounts
+	 */
+	AccountInfo provisionAccount(String clusterUri, ApplicationInfo applicationInfo) {
+		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(clusterUri)
 				.path("/api/v2/trial/spring-boot-autoconfigure").queryParam("application", applicationInfo.getName())
 				.queryParam("service", applicationInfo.getService());
 		if (applicationInfo.getCluster() != null) {
@@ -54,12 +66,15 @@ class AccountProvisioningClient {
 			uriComponentsBuilder.queryParam("shard", applicationInfo.getShard());
 		}
 		URI requestUri = uriComponentsBuilder.build().toUri();
-		if (this.logger.isDebugEnabled()) {
-			this.logger.debug("Auto-negotiating Wavefront credentials from: " + requestUri);
+		this.logger.debug("Auto-negotiating Wavefront credentials from: " + requestUri);
+		try {
+			String json = this.restTemplate.postForObject(requestUri, null, String.class);
+			Map<String, Object> content = new BasicJsonParser().parseMap(json);
+			return new AccountInfo((String) content.get("token"), (String) content.get("url"));
 		}
-		ResponseEntity<String> response = this.restTemplate.postForEntity(requestUri, null, String.class);
-		// TODO
-		return response.getBody();
+		catch (NotAcceptable ex) {
+			throw new AccountProvisioningFailedException(clusterUri, ex.getResponseBodyAsString());
+		}
 	}
 
 }

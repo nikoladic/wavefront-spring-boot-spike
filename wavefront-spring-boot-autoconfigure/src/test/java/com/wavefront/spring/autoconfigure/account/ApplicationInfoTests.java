@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.wavefront.spring.autoconfigure;
+package com.wavefront.spring.autoconfigure.account;
 
 import org.junit.jupiter.api.Test;
 

@@ -1,2 +1,2 @@
-org.springframework.context.ApplicationListener=com.wavefront.spring.autoconfigure.WavefrontEnvironmentPostProcessor
-org.springframework.boot.env.EnvironmentPostProcessor=com.wavefront.spring.autoconfigure.WavefrontEnvironmentPostProcessor
+org.springframework.context.ApplicationListener=com.wavefront.spring.autoconfigure.account.WavefrontEnvironmentPostProcessor
+org.springframework.boot.env.EnvironmentPostProcessor=com.wavefront.spring.autoconfigure.account.WavefrontEnvironmentPostProcessor

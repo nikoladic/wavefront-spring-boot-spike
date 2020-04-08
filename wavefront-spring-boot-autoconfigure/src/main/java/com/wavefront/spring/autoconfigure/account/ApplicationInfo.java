@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package com.wavefront.spring.autoconfigure;
+package com.wavefront.spring.autoconfigure.account;
 
-import java.util.StringJoiner;
 import java.util.function.Supplier;
 
 import org.springframework.core.env.Environment;
 
 /**
- * Gathers the necessary information to provision a Wavefront account.
+ * Gather the necessary information to provision a Wavefront account.
  *
  * @author Stephane Nicoll
  */
@@ -71,13 +70,6 @@ class ApplicationInfo {
 
 	String getShard() {
 		return this.shard;
-	}
-
-	@Override
-	public String toString() {
-		return new StringJoiner(", ", ApplicationInfo.class.getSimpleName() + "[", "]").add("name='" + this.name + "'")
-				.add("service='" + this.service + "'").add("cluster='" + this.cluster + "'")
-				.add("shard='" + this.shard + "'").toString();
 	}
 
 }
