@@ -49,6 +49,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	private static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
 
+	private static final String URI_PROPERTY = "management.metrics.export.wavefront.uri";
+
 	@Test
 	void environmentIsNotModifiedIfApiTokenExists() {
 		ConfigurableEnvironment environment = mock(ConfigurableEnvironment.class);
@@ -56,6 +58,14 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, null);
 		verify(environment).getProperty(API_TOKEN_PROPERTY);
 		verifyNoMoreInteractions(environment);
+	}
+
+	@Test
+	void environmentIsNotModifiedIfApiTokenIsNotNecessary() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty(URI_PROPERTY, "proxy://example.com:2878");
+		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, null);
+		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isNull();
 	}
 
 	@Test

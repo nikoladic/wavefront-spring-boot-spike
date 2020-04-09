@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -54,9 +55,7 @@ class AccountProvisioningEnvironmentPostProcessor
 
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-		String apiToken = environment.getProperty(API_TOKEN_PROPERTY);
-		if (StringUtils.hasText(apiToken)) {
-			this.logger.debug("Wavefront api token already set, no need to negotiate one");
+		if (!isApiTokenRequired(environment)) {
 			return;
 		}
 		Resource localApiTokenResource = getLocalApiTokenResource();
@@ -77,6 +76,20 @@ class AccountProvisioningEnvironmentPostProcessor
 				logAccountProvisioningFailure(clusterUri, ex.getMessage());
 			}
 		}
+	}
+
+	private boolean isApiTokenRequired(ConfigurableEnvironment environment) {
+		String apiToken = environment.getProperty(API_TOKEN_PROPERTY);
+		if (StringUtils.hasText(apiToken)) {
+			this.logger.debug("Wavefront api token already set, no need to negotiate one");
+			return false;
+		}
+		URI uri = environment.getProperty(URI_PROPERTY, URI.class);
+		if (uri != null && "proxy".equals(uri.getScheme())) {
+			this.logger.debug("Pushing to a Wavefront proxy does not require an api token.");
+			return false;
+		}
+		return true;
 	}
 
 	private void logAccountProvisioning(String clusterUri, AccountInfo accountInfo) {
