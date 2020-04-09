@@ -1,0 +1,52 @@
+= Wavefront Spring Boot Starter
+
+This starter auto-negotiates an account if no api token is specified and an account has
+not been provisioned previously.
+
+To give it a try, first build the necessary bits by invoking the following at the root of the project:
+
+[indent=0]
+----
+    $ ./mvnw clean install
+----
+
+The `wavefront-spring-boot-sample` provides an empty Spring Boot web application that uses this starter.
+On startup, an account is negotiated and the provided api token is written at `~/.wavefront_token`.
+Further run will reuse the api token stored in that file.
+
+You can run the sample from your IDE or on the command line as follows:
+
+[indent=0]
+----
+    $ ./mvnw spring-boot:run -pl wavefront-spring-boot-sample
+----
+
+On startup, you should see something like this:
+
+[indent=0]
+----
+A Wavefront account has been provisioned successfully and the API token has been saved to disk.
+
+To configure Spring Boot to use this account moving forward, add the following to your configuration:
+
+	management.metrics.export.wavefront.api-token=2f0945af-abcd-defg-hijk-ea609719418b
+
+Connect to your Wavefront dashboard using this one-time use link:
+https://wavefront.surf/us/test123
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::  (v2.3.0.BUILD-SNAPSHOT)
+
+2020-04-09 22:34:35.181  INFO 45903 --- [           main] com.example.WavefrontSenderApplication   : Starting WavefrontSenderApplication on taurus-2.lan with PID 45903 (/Users/snicoll/workspace/scratches/wavefront-spring-boot/wavefront-spring-boot-sample/target/classes started by snicoll in /Users/snicoll/workspace/scratches/wavefront-spring-boot/wavefront-spring-boot-sample)
+----
+
+TIP: If you don't see this message on startup, you may have a `~/.wavefront_token` file already or an api token is already configured.
+
+
+
