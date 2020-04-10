@@ -26,8 +26,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -51,11 +54,13 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	private static final String URI_PROPERTY = "management.metrics.export.wavefront.uri";
 
+	private SpringApplication application = mock(SpringApplication.class);
+
 	@Test
 	void environmentIsNotModifiedIfApiTokenExists() {
 		ConfigurableEnvironment environment = mock(ConfigurableEnvironment.class);
 		given(environment.getProperty(API_TOKEN_PROPERTY)).willReturn("test");
-		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, null);
+		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
 		verify(environment).getProperty(API_TOKEN_PROPERTY);
 		verifyNoMoreInteractions(environment);
 	}
@@ -64,7 +69,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void environmentIsNotModifiedIfApiTokenIsNotNecessary() {
 		MockEnvironment environment = new MockEnvironment();
 		environment.setProperty(URI_PROPERTY, "proxy://example.com:2878");
-		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, null);
+		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isNull();
 	}
 
@@ -77,7 +82,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		MockEnvironment environment = new MockEnvironment();
 		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource, (clusterInfo, applicationInfo) -> {
 			throw new IllegalArgumentException("Should not be called");
-		}).postProcessEnvironment(environment, null);
+		}).postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 	}
 
@@ -86,14 +91,16 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		Path apiTokenFile = directory.resolve("test.token");
 		assertThat(apiTokenFile).doesNotExist();
 		MockEnvironment environment = new MockEnvironment();
-		new TestAccountProvisioningEnvironmentPostProcessor(new PathResource(apiTokenFile),
-				(clusterInfo, applicationInfo) -> {
+		TestAccountProvisioningEnvironmentPostProcessor postProcessor = new TestAccountProvisioningEnvironmentPostProcessor(
+				new PathResource(apiTokenFile), (clusterInfo, applicationInfo) -> {
 					assertThat(clusterInfo).isEqualTo("https://wavefront.surf");
 					return new AccountInfo("abc-def", "/us/test");
-				}).postProcessEnvironment(environment, null);
+				});
+		postProcessor.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 		assertThat(apiTokenFile).exists();
 		assertThat(apiTokenFile).hasContent("abc-def");
+		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
 		assertThat(output).contains("https://wavefront.surf", "https://wavefront.surf/us/test",
 				API_TOKEN_PROPERTY + "=abc-def");
 	}
@@ -103,11 +110,14 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		Resource apiTokenResource = mock(Resource.class);
 		given(apiTokenResource.isReadable()).willReturn(false);
 		MockEnvironment environment = new MockEnvironment();
-		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource, (clusterInfo, applicationInfo) -> {
-			throw new AccountProvisioningFailedException("test message");
-		}).postProcessEnvironment(environment, null);
+		TestAccountProvisioningEnvironmentPostProcessor postProcessor = new TestAccountProvisioningEnvironmentPostProcessor(
+				apiTokenResource, (clusterInfo, applicationInfo) -> {
+					throw new AccountProvisioningFailedException("test message");
+				});
+		postProcessor.postProcessEnvironment(environment, this.application);
 		verify(apiTokenResource).isReadable();
 		verifyNoMoreInteractions(apiTokenResource);
+		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
 		assertThat(output).contains("https://wavefront.surf", "test message");
 	}
 
@@ -120,7 +130,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		MockEnvironment environment = new MockEnvironment();
 		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource,
 				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
-						null);
+						this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
 	}
 
@@ -133,7 +143,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		MockEnvironment environment = new MockEnvironment();
 		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource,
 				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
-						null);
+						this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
 	}
 
@@ -150,6 +160,10 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		ApplicationInfo applicationInfo = mock(ApplicationInfo.class);
 		new AccountProvisioningEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationInfo);
 		verify(client).provisionAccount(clusterUri, applicationInfo);
+	}
+
+	private ApplicationStartedEvent mockApplicationStartedEvent() {
+		return new ApplicationStartedEvent(this.application, new String[0], mock(ConfigurableApplicationContext.class));
 	}
 
 	static class TestAccountProvisioningEnvironmentPostProcessor extends AccountProvisioningEnvironmentPostProcessor {

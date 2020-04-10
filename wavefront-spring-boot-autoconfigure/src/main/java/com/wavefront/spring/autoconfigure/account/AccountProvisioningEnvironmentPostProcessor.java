@@ -24,9 +24,13 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.function.Supplier;
 
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.event.ApplicationFailedEvent;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.boot.context.event.SpringApplicationEvent;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.boot.logging.DeferredLog;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -45,7 +49,7 @@ import org.springframework.util.StringUtils;
  * @author Stephane Nicoll
  */
 class AccountProvisioningEnvironmentPostProcessor
-		implements EnvironmentPostProcessor, ApplicationListener<ApplicationPreparedEvent> {
+		implements EnvironmentPostProcessor, ApplicationListener<SpringApplicationEvent> {
 
 	static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
 
@@ -53,8 +57,11 @@ class AccountProvisioningEnvironmentPostProcessor
 
 	private final DeferredLog logger = new DeferredLog();
 
+	private Supplier<String> accountProvisioningOutcome;
+
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+		application.addListeners(this);
 		if (!isApiTokenRequired(environment)) {
 			return;
 		}
@@ -70,10 +77,22 @@ class AccountProvisioningEnvironmentPostProcessor
 				AccountInfo accountInfo = autoNegotiateAccount(environment, clusterUri);
 				registerApiToken(environment, accountInfo.getApiToken());
 				writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
-				logAccountProvisioning(clusterUri, accountInfo);
+				this.accountProvisioningOutcome = accountProvisioningSuccess(clusterUri, accountInfo);
 			}
 			catch (Exception ex) {
-				logAccountProvisioningFailure(clusterUri, ex.getMessage());
+				this.accountProvisioningOutcome = accountProvisioningFailure(clusterUri, ex.getMessage());
+			}
+		}
+	}
+
+	@Override
+	public void onApplicationEvent(SpringApplicationEvent event) {
+		if (event instanceof ApplicationPreparedEvent) {
+			this.logger.switchTo(AccountProvisioningEnvironmentPostProcessor.class);
+		}
+		if (event instanceof ApplicationStartedEvent || event instanceof ApplicationFailedEvent) {
+			if (this.accountProvisioningOutcome != null) {
+				System.out.println(this.accountProvisioningOutcome.get());
 			}
 		}
 	}
@@ -92,7 +111,7 @@ class AccountProvisioningEnvironmentPostProcessor
 		return true;
 	}
 
-	private void logAccountProvisioning(String clusterUri, AccountInfo accountInfo) {
+	private Supplier<String> accountProvisioningSuccess(String clusterUri, AccountInfo accountInfo) {
 		StringBuilder sb = new StringBuilder(String.format(
 				"%nA Wavefront account has been provisioned successfully and the API token has been saved to disk.%n%n"));
 		sb.append(String.format(
@@ -100,21 +119,16 @@ class AccountProvisioningEnvironmentPostProcessor
 		sb.append(String.format("\t%s=%s%n%n", API_TOKEN_PROPERTY, accountInfo.getApiToken()));
 		sb.append(String.format("Connect to your Wavefront dashboard using this one-time use link:%n%s%n",
 				accountInfo.determineLoginUrl(clusterUri)));
-		System.out.println(sb.toString());
+		return sb::toString;
 	}
 
-	private void logAccountProvisioningFailure(String clusterUri, String message) {
+	private Supplier<String> accountProvisioningFailure(String clusterUri, String message) {
 		StringBuilder sb = new StringBuilder(
 				String.format("%nFailed to auto-negotiate a Wavefront api token from %s.", clusterUri));
 		if (StringUtils.hasText(message)) {
 			sb.append(String.format(" The error was:%n%n%s%n%n", message));
 		}
-		System.out.println(sb.toString());
-	}
-
-	@Override
-	public void onApplicationEvent(ApplicationPreparedEvent event) {
-		this.logger.switchTo(AccountProvisioningEnvironmentPostProcessor.class);
+		return sb::toString;
 	}
 
 	private String readExistingApiToken(Resource localApiTokenResource) {
