@@ -84,6 +84,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 			throw new IllegalArgumentException("Should not be called");
 		}).postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
+		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
 	}
 
 	@Test
@@ -98,6 +99,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 				});
 		postProcessor.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
+		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
 		assertThat(apiTokenFile).exists();
 		assertThat(apiTokenFile).hasContent("abc-def");
 		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
@@ -132,6 +134,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
 						this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
+		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
 	}
 
 	@Test
@@ -145,6 +148,23 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 				(clusterInfo, applicationInfo) -> new AccountInfo("test", "test")).postProcessEnvironment(environment,
 						this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
+		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
+	}
+
+	@Test
+	void uriIsNotSetIfACustomUriIsSet() throws IOException {
+		Resource apiTokenResource = mock(Resource.class);
+		given(apiTokenResource.isReadable()).willReturn(true);
+		given(apiTokenResource.getInputStream())
+				.willReturn(new ByteArrayInputStream("abc-def".getBytes(StandardCharsets.UTF_8)));
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty(URI_PROPERTY, "https://example.com");
+		new TestAccountProvisioningEnvironmentPostProcessor(apiTokenResource, (clusterInfo, applicationInfo) -> {
+			throw new IllegalArgumentException("Should not be called");
+		}).postProcessEnvironment(environment, this.application);
+		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
+		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://example.com");
+		assertThat(environment.getPropertySources().get("wavefront").getProperty(URI_PROPERTY)).isNull();
 	}
 
 	@Test

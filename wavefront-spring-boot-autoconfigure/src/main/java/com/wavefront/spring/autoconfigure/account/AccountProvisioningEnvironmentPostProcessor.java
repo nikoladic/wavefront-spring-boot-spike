@@ -23,7 +23,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.springframework.boot.SpringApplication;
@@ -51,9 +52,11 @@ import org.springframework.util.StringUtils;
 class AccountProvisioningEnvironmentPostProcessor
 		implements EnvironmentPostProcessor, ApplicationListener<SpringApplicationEvent> {
 
-	static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
+	private static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
 
-	static final String URI_PROPERTY = "management.metrics.export.wavefront.uri";
+	private static final String URI_PROPERTY = "management.metrics.export.wavefront.uri";
+
+	private static final String DEFAULT_CLUSTER_URI = "https://wavefront.surf";
 
 	private final DeferredLog logger = new DeferredLog();
 
@@ -72,7 +75,7 @@ class AccountProvisioningEnvironmentPostProcessor
 			registerApiToken(environment, existingApiToken);
 		}
 		else {
-			String clusterUri = environment.getProperty(URI_PROPERTY, "https://wavefront.surf");
+			String clusterUri = environment.getProperty(URI_PROPERTY, DEFAULT_CLUSTER_URI);
 			try {
 				AccountInfo accountInfo = autoNegotiateAccount(environment, clusterUri);
 				registerApiToken(environment, accountInfo.getApiToken());
@@ -162,8 +165,13 @@ class AccountProvisioningEnvironmentPostProcessor
 	}
 
 	private void registerApiToken(ConfigurableEnvironment environment, String apiToken) {
-		MapPropertySource wavefrontPropertySource = new MapPropertySource("wavefront",
-				Collections.singletonMap(API_TOKEN_PROPERTY, apiToken));
+		Map<String, Object> wavefrontSettings = new HashMap<>();
+		wavefrontSettings.put(API_TOKEN_PROPERTY, apiToken);
+		String configuredClusterUri = environment.getProperty(URI_PROPERTY);
+		if (!StringUtils.hasText(configuredClusterUri)) {
+			wavefrontSettings.put(URI_PROPERTY, DEFAULT_CLUSTER_URI);
+		}
+		MapPropertySource wavefrontPropertySource = new MapPropertySource("wavefront", wavefrontSettings);
 		environment.getPropertySources().addLast(wavefrontPropertySource);
 	}
 
