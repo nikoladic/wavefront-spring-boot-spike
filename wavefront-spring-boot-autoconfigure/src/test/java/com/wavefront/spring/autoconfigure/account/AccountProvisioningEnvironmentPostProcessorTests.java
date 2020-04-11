@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
+import com.wavefront.sdk.common.application.ApplicationTags;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -199,20 +200,20 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void provisionAccountInvokeClientWithSuppliedArguments() {
 		AccountManagementClient client = mock(AccountManagementClient.class);
 		String clusterUri = "https://example.com";
-		ApplicationInfo applicationInfo = mock(ApplicationInfo.class);
-		new AccountProvisioningEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationInfo);
-		verify(client).provisionAccount(clusterUri, applicationInfo);
+		ApplicationTags applicationTags = mock(ApplicationTags.class);
+		new AccountProvisioningEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationTags);
+		verify(client).provisionAccount(clusterUri, applicationTags);
 	}
 
 	@Test
 	void getExistingAccountInvokeClientWithSuppliedArguments() {
 		AccountManagementClient client = mock(AccountManagementClient.class);
 		String clusterUri = "https://example.com";
-		ApplicationInfo applicationInfo = mock(ApplicationInfo.class);
+		ApplicationTags applicationTags = mock(ApplicationTags.class);
 		String apiToken = "abc-def";
-		new AccountProvisioningEnvironmentPostProcessor().getExistingAccount(client, clusterUri, applicationInfo,
+		new AccountProvisioningEnvironmentPostProcessor().getExistingAccount(client, clusterUri, applicationTags,
 				apiToken);
-		verify(client).getExistingAccount(clusterUri, applicationInfo, apiToken);
+		verify(client).getExistingAccount(clusterUri, applicationTags, apiToken);
 	}
 
 	private ApplicationStartedEvent mockApplicationStartedEvent() {
@@ -255,13 +256,13 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 		@Override
 		protected AccountInfo getExistingAccount(AccountManagementClient client, String clusterUri,
-				ApplicationInfo applicationInfo, String apiToken) {
+				ApplicationTags applicationTags, String apiToken) {
 			return this.existingAccount.get();
 		}
 
 		@Override
 		protected AccountInfo provisionAccount(AccountManagementClient client, String clusterUri,
-				ApplicationInfo applicationInfo) {
+				ApplicationTags applicationTags) {
 			return this.accountProvisioning.get();
 		}
 

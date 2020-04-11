@@ -28,6 +28,9 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
+import com.wavefront.sdk.common.application.ApplicationTags;
+import com.wavefront.spring.autoconfigure.ApplicationTagsFactory;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationFailedEvent;
 import org.springframework.boot.context.event.ApplicationPreparedEvent;
@@ -114,7 +117,7 @@ class AccountProvisioningEnvironmentPostProcessor
 			this.logger.debug("Existing Wavefront api token found from " + localApiTokenResource);
 			registerApiToken(environment, apiToken);
 			AccountInfo accountInfo = invokeAccountManagementClient(environment,
-					(client, applicationInfo) -> getExistingAccount(client, clusterUri, applicationInfo, apiToken));
+					(client, applicationTags) -> getExistingAccount(client, clusterUri, applicationTags, apiToken));
 			return existingAccountConfigured(clusterUri, accountInfo);
 		}
 		catch (Exception ex) {
@@ -191,11 +194,11 @@ class AccountProvisioningEnvironmentPostProcessor
 	}
 
 	private AccountInfo invokeAccountManagementClient(ConfigurableEnvironment environment,
-			BiFunction<AccountManagementClient, ApplicationInfo, AccountInfo> accountProvider) {
+			BiFunction<AccountManagementClient, ApplicationTags, AccountInfo> accountProvider) {
 		RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
 		AccountManagementClient client = new AccountManagementClient(this.logger, restTemplateBuilder);
-		ApplicationInfo applicationInfo = new ApplicationInfo(environment);
-		return accountProvider.apply(client, applicationInfo);
+		ApplicationTags applicationTags = new ApplicationTagsFactory().createFromEnvironment(environment);
+		return accountProvider.apply(client, applicationTags);
 	}
 
 	private void registerApiToken(ConfigurableEnvironment environment, String apiToken) {
@@ -214,13 +217,13 @@ class AccountProvisioningEnvironmentPostProcessor
 	}
 
 	protected AccountInfo getExistingAccount(AccountManagementClient client, String clusterUri,
-			ApplicationInfo applicationInfo, String apiToken) {
-		return client.getExistingAccount(clusterUri, applicationInfo, apiToken);
+			ApplicationTags applicationTags, String apiToken) {
+		return client.getExistingAccount(clusterUri, applicationTags, apiToken);
 	}
 
 	protected AccountInfo provisionAccount(AccountManagementClient client, String clusterUri,
-			ApplicationInfo applicationInfo) {
-		return client.provisionAccount(clusterUri, applicationInfo);
+			ApplicationTags applicationTags) {
+		return client.provisionAccount(clusterUri, applicationTags);
 	}
 
 }

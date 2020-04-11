@@ -20,6 +20,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 
+import com.wavefront.sdk.common.application.ApplicationTags;
 import org.apache.commons.logging.Log;
 
 import org.springframework.boot.json.BasicJsonParser;
@@ -33,7 +34,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Manage a Wavefront {@linkplain AccountInfo account} based on an
- * {@link ApplicationInfo}.
+ * {@link ApplicationTags}.
  *
  * @author Stephane Nicoll
  */
@@ -53,13 +54,13 @@ class AccountManagementClient {
 	 * Provision an account for the specified Wavefront cluster and application
 	 * information.
 	 * @param clusterUri the URI of the Wavefront cluster
-	 * @param applicationInfo the {@link ApplicationInfo} to use
+	 * @param applicationTags the {@link ApplicationTags} to use
 	 * @return the provisioned account
 	 * @throws AccountManagementFailedException if the cluster does not support freemium
 	 * accounts
 	 */
-	AccountInfo provisionAccount(String clusterUri, ApplicationInfo applicationInfo) {
-		URI requestUri = accountManagementUri(clusterUri, applicationInfo);
+	AccountInfo provisionAccount(String clusterUri, ApplicationTags applicationTags) {
+		URI requestUri = accountManagementUri(clusterUri, applicationTags);
 		this.logger.debug("Auto-negotiating Wavefront user account from " + requestUri);
 		try {
 			return parseAccountInfo(this.restTemplate.postForObject(requestUri, null, String.class));
@@ -73,14 +74,14 @@ class AccountManagementClient {
 	 * Retrieve an existing account for the specified Wavefront cluster, application
 	 * information and api token.
 	 * @param clusterUri the URI of the Wavefront cluster
-	 * @param applicationInfo the {@link ApplicationInfo} to use
+	 * @param applicationTags the {@link ApplicationTags} to use
 	 * @param apiToken the api token to use
 	 * @return an existing account information
 	 * @throws AccountManagementFailedException if the cluster does not support freemium
 	 * accounts
 	 */
-	AccountInfo getExistingAccount(String clusterUri, ApplicationInfo applicationInfo, String apiToken) {
-		URI requestUri = accountManagementUri(clusterUri, applicationInfo);
+	AccountInfo getExistingAccount(String clusterUri, ApplicationTags applicationTags, String apiToken) {
+		URI requestUri = accountManagementUri(clusterUri, applicationTags);
 		HttpHeaders headers = new HttpHeaders();
 		headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + apiToken);
 		this.logger.debug("Retrieving existing account from " + requestUri);
@@ -93,15 +94,16 @@ class AccountManagementClient {
 		}
 	}
 
-	private URI accountManagementUri(String clusterUri, ApplicationInfo applicationInfo) {
+	private URI accountManagementUri(String clusterUri, ApplicationTags applicationTags) {
 		UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(clusterUri)
-				.path("/api/v2/trial/spring-boot-autoconfigure").queryParam("application", applicationInfo.getName())
-				.queryParam("service", applicationInfo.getService());
-		if (applicationInfo.getCluster() != null) {
-			uriComponentsBuilder.queryParam("cluster", applicationInfo.getCluster());
+				.path("/api/v2/trial/spring-boot-autoconfigure")
+				.queryParam("application", applicationTags.getApplication())
+				.queryParam("service", applicationTags.getService());
+		if (applicationTags.getCluster() != null) {
+			uriComponentsBuilder.queryParam("cluster", applicationTags.getCluster());
 		}
-		if (applicationInfo.getShard() != null) {
-			uriComponentsBuilder.queryParam("shard", applicationInfo.getShard());
+		if (applicationTags.getShard() != null) {
+			uriComponentsBuilder.queryParam("shard", applicationTags.getShard());
 		}
 		return uriComponentsBuilder.build().toUri();
 	}
