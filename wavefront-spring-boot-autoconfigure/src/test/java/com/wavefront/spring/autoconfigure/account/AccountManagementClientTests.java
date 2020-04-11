@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.test.web.client.MockServerRestTemplateCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,25 +31,26 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestToUriTemplate;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 /**
- * Tests for {@link AccountProvisioningClient}.
+ * Tests for {@link AccountManagementClient}.
  *
  * @author Stephane Nicoll
  */
-class AccountProvisioningClientTests {
+class AccountManagementClientTests {
 
 	private final MockRestServiceServer mockServer;
 
-	private final AccountProvisioningClient client;
+	private final AccountManagementClient client;
 
-	AccountProvisioningClientTests() {
+	AccountManagementClientTests() {
 		MockServerRestTemplateCustomizer restTemplateCustomizer = new MockServerRestTemplateCustomizer();
 		RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder().customizers(restTemplateCustomizer);
-		this.client = new AccountProvisioningClient(mock(Log.class), restTemplateBuilder);
+		this.client = new AccountManagementClient(mock(Log.class), restTemplateBuilder);
 		this.mockServer = restTemplateCustomizer.getServer();
 	}
 
@@ -94,7 +96,37 @@ class AccountProvisioningClientTests {
 						.contentType(MediaType.APPLICATION_JSON).body("test failure".getBytes()));
 		assertThatThrownBy(
 				() -> this.client.provisionAccount("https://example.com", new ApplicationInfo(new MockEnvironment())))
-						.hasMessageContaining("test failure").isInstanceOf(AccountProvisioningFailedException.class);
+						.hasMessageContaining("test failure").isInstanceOf(AccountManagementFailedException.class);
+	}
+
+	@Test
+	void retrieveAccountOnSupportedCluster() {
+		this.mockServer
+				.expect(requestToUriTemplate(
+						"https://example.com/api/v2/trial/spring-boot-autoconfigure?application={0}&service={1}",
+						"unnamed_application", "unnamed_service"))
+				.andExpect(method(HttpMethod.GET))
+				.andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer ee479a71-abcd-abcd-abcd-62b0e8416989"))
+				.andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+						.body("{\"url\":\"/us/test123\",\"token\":\"ee479a71-abcd-abcd-abcd-62b0e8416989\"}\n"));
+		AccountInfo accountInfo = this.client.getExistingAccount("https://example.com",
+				new ApplicationInfo(new MockEnvironment()), "ee479a71-abcd-abcd-abcd-62b0e8416989");
+		assertThat(accountInfo.getApiToken()).isEqualTo("ee479a71-abcd-abcd-abcd-62b0e8416989");
+		assertThat(accountInfo.determineLoginUrl("https://example.com")).isEqualTo("https://example.com/us/test123");
+	}
+
+	@Test
+	void retrieveAccountWithWrongApiToken() {
+		this.mockServer
+				.expect(requestToUriTemplate(
+						"https://example.com/api/v2/trial/spring-boot-autoconfigure?application={0}&service={1}",
+						"unnamed_application", "unnamed_service"))
+				.andExpect(method(HttpMethod.GET)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer wrong-token"))
+				.andRespond(withStatus(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+						.body("test failure".getBytes()));
+		assertThatThrownBy(() -> this.client.getExistingAccount("https://example.com",
+				new ApplicationInfo(new MockEnvironment()), "wrong-token")).hasMessageContaining("test failure")
+						.isInstanceOf(AccountManagementFailedException.class);
 	}
 
 }

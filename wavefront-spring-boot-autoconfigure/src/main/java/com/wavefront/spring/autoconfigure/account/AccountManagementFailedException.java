@@ -17,13 +17,13 @@
 package com.wavefront.spring.autoconfigure.account;
 
 /**
- * Thrown if an account couldn't be provisioned by the cluster.
+ * Thrown if managing an account failed.
  *
  * @author Stephane Nicoll
  */
-class AccountProvisioningFailedException extends RuntimeException {
+class AccountManagementFailedException extends RuntimeException {
 
-	AccountProvisioningFailedException(String message) {
+	AccountManagementFailedException(String message) {
 		super(message);
 	}
 

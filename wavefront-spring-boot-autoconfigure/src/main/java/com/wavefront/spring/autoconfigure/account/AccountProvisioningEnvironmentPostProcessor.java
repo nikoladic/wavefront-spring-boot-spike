@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import org.springframework.boot.SpringApplication;
@@ -45,7 +46,8 @@ import org.springframework.util.StringUtils;
 
 /**
  * An {@link EnvironmentPostProcessor} that auto-negotiates an api token for Wavefront if
- * necessary.
+ * necessary. If an account was already provisioned and the api token is available from
+ * disk, retrieves a one time link url to the Wavefront dashboard.
  *
  * @author Stephane Nicoll
  */
@@ -60,7 +62,7 @@ class AccountProvisioningEnvironmentPostProcessor
 
 	private final DeferredLog logger = new DeferredLog();
 
-	private Supplier<String> accountProvisioningOutcome;
+	private Supplier<String> accountConfigurationOutcome;
 
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -68,23 +70,15 @@ class AccountProvisioningEnvironmentPostProcessor
 		if (!isApiTokenRequired(environment)) {
 			return;
 		}
+		String clusterUri = environment.getProperty(URI_PROPERTY, DEFAULT_CLUSTER_URI);
 		Resource localApiTokenResource = getLocalApiTokenResource();
 		String existingApiToken = readExistingApiToken(localApiTokenResource);
 		if (existingApiToken != null) {
-			this.logger.debug("Existing Wavefront api token found from " + localApiTokenResource);
-			registerApiToken(environment, existingApiToken);
+			this.accountConfigurationOutcome = configureExistingAccount(environment, clusterUri, localApiTokenResource,
+					existingApiToken);
 		}
 		else {
-			String clusterUri = environment.getProperty(URI_PROPERTY, DEFAULT_CLUSTER_URI);
-			try {
-				AccountInfo accountInfo = autoNegotiateAccount(environment, clusterUri);
-				registerApiToken(environment, accountInfo.getApiToken());
-				writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
-				this.accountProvisioningOutcome = accountProvisioningSuccess(clusterUri, accountInfo);
-			}
-			catch (Exception ex) {
-				this.accountProvisioningOutcome = accountProvisioningFailure(clusterUri, ex.getMessage());
-			}
+			this.accountConfigurationOutcome = configureNewAccount(environment, clusterUri, localApiTokenResource);
 		}
 	}
 
@@ -94,8 +88,8 @@ class AccountProvisioningEnvironmentPostProcessor
 			this.logger.switchTo(AccountProvisioningEnvironmentPostProcessor.class);
 		}
 		if (event instanceof ApplicationStartedEvent || event instanceof ApplicationFailedEvent) {
-			if (this.accountProvisioningOutcome != null) {
-				System.out.println(this.accountProvisioningOutcome.get());
+			if (this.accountConfigurationOutcome != null) {
+				System.out.println(this.accountConfigurationOutcome.get());
 			}
 		}
 	}
@@ -114,6 +108,46 @@ class AccountProvisioningEnvironmentPostProcessor
 		return true;
 	}
 
+	private Supplier<String> configureExistingAccount(ConfigurableEnvironment environment, String clusterUri,
+			Resource localApiTokenResource, String apiToken) {
+		try {
+			this.logger.debug("Existing Wavefront api token found from " + localApiTokenResource);
+			registerApiToken(environment, apiToken);
+			AccountInfo accountInfo = invokeAccountManagementClient(environment,
+					(client, applicationInfo) -> getExistingAccount(client, clusterUri, applicationInfo, apiToken));
+			return existingAccountConfigured(clusterUri, accountInfo);
+		}
+		catch (Exception ex) {
+			return accountManagementFailure(
+					String.format("Failed to retrieve existing account information from %s.", clusterUri),
+					ex.getMessage());
+		}
+	}
+
+	private Supplier<String> configureNewAccount(ConfigurableEnvironment environment, String clusterUri,
+			Resource localApiTokenResource) {
+		try {
+			AccountInfo accountInfo = invokeAccountManagementClient(environment,
+					(client, applicationInfo) -> provisionAccount(client, clusterUri, applicationInfo));
+			registerApiToken(environment, accountInfo.getApiToken());
+			writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
+			return accountProvisioningSuccess(clusterUri, accountInfo);
+		}
+		catch (Exception ex) {
+			return accountManagementFailure(
+					String.format("Failed to auto-negotiate a Wavefront api token from %s.", clusterUri),
+					ex.getMessage());
+		}
+	}
+
+	private Supplier<String> existingAccountConfigured(String clusterUri, AccountInfo accountInfo) {
+		StringBuilder sb = new StringBuilder(
+				String.format("%nYour existing Wavefront account information has been restored from disk.%n%n"));
+		sb.append(String.format("Connect to your Wavefront dashboard using this one-time use link:%n%s%n",
+				accountInfo.determineLoginUrl(clusterUri)));
+		return sb::toString;
+	}
+
 	private Supplier<String> accountProvisioningSuccess(String clusterUri, AccountInfo accountInfo) {
 		StringBuilder sb = new StringBuilder(String.format(
 				"%nA Wavefront account has been provisioned successfully and the API token has been saved to disk.%n%n"));
@@ -125,9 +159,8 @@ class AccountProvisioningEnvironmentPostProcessor
 		return sb::toString;
 	}
 
-	private Supplier<String> accountProvisioningFailure(String clusterUri, String message) {
-		StringBuilder sb = new StringBuilder(
-				String.format("%nFailed to auto-negotiate a Wavefront api token from %s.", clusterUri));
+	private Supplier<String> accountManagementFailure(String reason, String message) {
+		StringBuilder sb = new StringBuilder(String.format("%n%s", reason));
 		if (StringUtils.hasText(message)) {
 			sb.append(String.format(" The error was:%n%n%s%n%n", message));
 		}
@@ -157,11 +190,12 @@ class AccountProvisioningEnvironmentPostProcessor
 		}
 	}
 
-	private AccountInfo autoNegotiateAccount(ConfigurableEnvironment environment, String clusterUri) {
+	private AccountInfo invokeAccountManagementClient(ConfigurableEnvironment environment,
+			BiFunction<AccountManagementClient, ApplicationInfo, AccountInfo> accountProvider) {
 		RestTemplateBuilder restTemplateBuilder = new RestTemplateBuilder();
-		AccountProvisioningClient client = new AccountProvisioningClient(this.logger, restTemplateBuilder);
+		AccountManagementClient client = new AccountManagementClient(this.logger, restTemplateBuilder);
 		ApplicationInfo applicationInfo = new ApplicationInfo(environment);
-		return provisionAccount(client, clusterUri, applicationInfo);
+		return accountProvider.apply(client, applicationInfo);
 	}
 
 	private void registerApiToken(ConfigurableEnvironment environment, String apiToken) {
@@ -179,7 +213,12 @@ class AccountProvisioningEnvironmentPostProcessor
 		return new PathResource(Paths.get(System.getProperty("user.home"), ".wavefront_token"));
 	}
 
-	protected AccountInfo provisionAccount(AccountProvisioningClient client, String clusterUri,
+	protected AccountInfo getExistingAccount(AccountManagementClient client, String clusterUri,
+			ApplicationInfo applicationInfo, String apiToken) {
+		return client.getExistingAccount(clusterUri, applicationInfo, apiToken);
+	}
+
+	protected AccountInfo provisionAccount(AccountManagementClient client, String clusterUri,
 			ApplicationInfo applicationInfo) {
 		return client.provisionAccount(clusterUri, applicationInfo);
 	}
