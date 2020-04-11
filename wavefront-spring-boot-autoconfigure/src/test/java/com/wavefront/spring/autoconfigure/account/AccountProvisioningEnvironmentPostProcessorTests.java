@@ -104,7 +104,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		assertThat(apiTokenFile).hasContent("abc-def");
 		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
 		assertThat(output).contains("https://wavefront.surf", "https://wavefront.surf/us/test",
-				API_TOKEN_PROPERTY + "=abc-def");
+				API_TOKEN_PROPERTY + "=abc-def", URI_PROPERTY + "=https://wavefront.surf");
 	}
 
 	@Test
