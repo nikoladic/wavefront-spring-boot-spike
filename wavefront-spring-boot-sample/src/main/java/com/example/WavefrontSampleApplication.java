@@ -20,10 +20,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class WavefrontSenderApplication {
+public class WavefrontSampleApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(WavefrontSenderApplication.class, args);
+		SpringApplication.run(WavefrontSampleApplication.class, args);
 	}
 
 }
