@@ -60,6 +60,23 @@ class WavefrontAutoConfigurationTests {
 	}
 
 	@Test
+	void applicationTagsCanBeCustomized() {
+		this.contextRunner
+				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service")
+				.withBean(ApplicationTagsBuilderCustomizer.class,
+						() -> (builder) -> builder.cluster("test-cluster").shard("test-shard"))
+				.run((context) -> {
+					assertThat(context).hasSingleBean(ApplicationTags.class);
+					ApplicationTags tags = context.getBean(ApplicationTags.class);
+					assertThat(tags.getApplication()).isEqualTo("test-app");
+					assertThat(tags.getService()).isEqualTo("test-service");
+					assertThat(tags.getCluster()).isEqualTo("test-cluster");
+					assertThat(tags.getShard()).isEqualTo("test-shard");
+					assertThat(tags.getCustomTags()).isEmpty();
+				});
+	}
+
+	@Test
 	void applicationTagsIsReusedWhenCustomInstanceExists() {
 		this.contextRunner
 				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service")

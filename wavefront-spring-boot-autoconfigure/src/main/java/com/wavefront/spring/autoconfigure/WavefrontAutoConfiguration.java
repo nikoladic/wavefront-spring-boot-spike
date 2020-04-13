@@ -25,6 +25,7 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.wavefront.WavefrontMeterRegistry;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -45,8 +46,10 @@ public class WavefrontAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public ApplicationTags wavefrontApplicationTags(WavefrontProperties properties) {
-		return new ApplicationTagsFactory().createFromProperties(properties);
+	public ApplicationTags wavefrontApplicationTags(WavefrontProperties properties,
+			ObjectProvider<ApplicationTagsBuilderCustomizer> customizers) {
+		return new ApplicationTagsFactory(customizers.orderedStream().collect(Collectors.toList()))
+				.createFromProperties(properties);
 	}
 
 	@Bean

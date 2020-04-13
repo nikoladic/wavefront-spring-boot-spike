@@ -16,12 +16,16 @@
 
 package com.wavefront.spring.autoconfigure;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 import com.wavefront.sdk.common.application.ApplicationTags;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.mock.env.MockEnvironment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /**
  * Tests for {@link ApplicationTagsFactory}.
@@ -112,6 +116,35 @@ class ApplicationTagsFactoryTests {
 		properties.getApplication().setShard("test-shard");
 		ApplicationTags applicationTags = this.factory.createFromProperties(properties);
 		assertThat(applicationTags.getShard()).isEqualTo("test-shard");
+	}
+
+	@Test
+	void applicationTagsWithSingleCustomizer() {
+		ApplicationTagsFactory customFactory = new ApplicationTagsFactory(Collections.singletonList(
+				(builder) -> builder.shard("overridden-shard").customTags(Collections.singletonMap("test", "value"))));
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("wavefront.application.shard", "test-shard");
+		ApplicationTags applicationTags = customFactory.createFromEnvironment(environment);
+		assertThat(applicationTags.getApplication()).isEqualTo("unnamed_application");
+		assertThat(applicationTags.getService()).isEqualTo("unnamed_service");
+		assertThat(applicationTags.getCluster()).isNull();
+		assertThat(applicationTags.getShard()).isEqualTo("overridden-shard");
+		assertThat(applicationTags.getCustomTags()).containsOnly(entry("test", "value"));
+	}
+
+	@Test
+	void applicationTagsExecuteCustomizersInOrder() {
+		ApplicationTagsFactory customFactory = new ApplicationTagsFactory(Arrays.asList(
+				(builder) -> builder.shard("overridden-shard").customTags(Collections.singletonMap("test", "value")),
+				(builder) -> builder.shard("test")));
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("wavefront.application.shard", "test-shard");
+		ApplicationTags applicationTags = customFactory.createFromEnvironment(environment);
+		assertThat(applicationTags.getApplication()).isEqualTo("unnamed_application");
+		assertThat(applicationTags.getService()).isEqualTo("unnamed_service");
+		assertThat(applicationTags.getCluster()).isNull();
+		assertThat(applicationTags.getShard()).isEqualTo("test");
+		assertThat(applicationTags.getCustomTags()).containsOnly(entry("test", "value"));
 	}
 
 }
