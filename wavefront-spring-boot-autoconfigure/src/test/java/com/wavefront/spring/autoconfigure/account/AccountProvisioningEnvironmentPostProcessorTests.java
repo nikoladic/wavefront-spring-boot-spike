@@ -88,6 +88,9 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
 		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
 		assertThat(output).contains("Your existing Wavefront account information has been restored from disk.\n" + "\n"
+				+ "To share this account, make sure the following is added to your configuration:\n\n"
+				+ "\tmanagement.metrics.export.wavefront.api-token=abc-def\n"
+				+ "\tmanagement.metrics.export.wavefront.uri=https://wavefront.surf\n\n"
 				+ "Connect to your Wavefront dashboard using this one-time use link:\n"
 				+ "https://wavefront.surf/us/test1\n");
 	}

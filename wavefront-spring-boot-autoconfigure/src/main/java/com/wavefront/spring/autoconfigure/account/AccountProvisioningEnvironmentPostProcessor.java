@@ -118,7 +118,8 @@ class AccountProvisioningEnvironmentPostProcessor
 			registerApiToken(environment, apiToken);
 			AccountInfo accountInfo = invokeAccountManagementClient(environment,
 					(client, applicationTags) -> getExistingAccount(client, clusterUri, applicationTags, apiToken));
-			return existingAccountConfigured(clusterUri, accountInfo);
+			return accountManagementSuccess("Your existing Wavefront account information has been restored from disk.",
+					clusterUri, accountInfo);
 		}
 		catch (Exception ex) {
 			return accountManagementFailure(
@@ -134,7 +135,9 @@ class AccountProvisioningEnvironmentPostProcessor
 					(client, applicationInfo) -> provisionAccount(client, clusterUri, applicationInfo));
 			registerApiToken(environment, accountInfo.getApiToken());
 			writeApiTokenToDisk(localApiTokenResource, accountInfo.getApiToken());
-			return accountProvisioningSuccess(clusterUri, accountInfo);
+			return accountManagementSuccess(
+					"A Wavefront account has been provisioned successfully and the API token has been saved to disk.",
+					clusterUri, accountInfo);
 		}
 		catch (Exception ex) {
 			return accountManagementFailure(
@@ -143,17 +146,8 @@ class AccountProvisioningEnvironmentPostProcessor
 		}
 	}
 
-	private Supplier<String> existingAccountConfigured(String clusterUri, AccountInfo accountInfo) {
-		StringBuilder sb = new StringBuilder(
-				String.format("%nYour existing Wavefront account information has been restored from disk.%n%n"));
-		sb.append(String.format("Connect to your Wavefront dashboard using this one-time use link:%n%s%n",
-				accountInfo.determineLoginUrl(clusterUri)));
-		return sb::toString;
-	}
-
-	private Supplier<String> accountProvisioningSuccess(String clusterUri, AccountInfo accountInfo) {
-		StringBuilder sb = new StringBuilder(String.format(
-				"%nA Wavefront account has been provisioned successfully and the API token has been saved to disk.%n%n"));
+	private Supplier<String> accountManagementSuccess(String message, String clusterUri, AccountInfo accountInfo) {
+		StringBuilder sb = new StringBuilder(String.format("%n%s%n%n", message));
 		sb.append(String.format("To share this account, make sure the following is added to your configuration:%n%n"));
 		sb.append(String.format("\t%s=%s%n", API_TOKEN_PROPERTY, accountInfo.getApiToken()));
 		sb.append(String.format("\t%s=%s%n%n", URI_PROPERTY, clusterUri));
