@@ -23,8 +23,9 @@ import java.util.stream.Collectors;
 import com.wavefront.sdk.common.application.ApplicationTags;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
-import io.micrometer.core.instrument.config.MeterFilter;
+import io.micrometer.wavefront.WavefrontMeterRegistry;
 
+import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,7 +39,7 @@ import org.springframework.context.annotation.Configuration;
  * @author Stephane Nicoll
  */
 @Configuration
-@ConditionalOnClass({ MeterFilter.class, ApplicationTags.class })
+@ConditionalOnClass({ WavefrontMeterRegistry.class, MeterRegistryCustomizer.class, ApplicationTags.class })
 @EnableConfigurationProperties(WavefrontProperties.class)
 public class WavefrontAutoConfiguration {
 
@@ -49,18 +50,23 @@ public class WavefrontAutoConfiguration {
 	}
 
 	@Bean
-	public MeterFilter wavefrontTagsMeterFilter(ApplicationTags applicationTags) {
-		Map<String, String> allTags = new HashMap<>();
+	public MeterRegistryCustomizer<WavefrontMeterRegistry> wavefrontTagsMeterRegistryCustomizer(
+			ApplicationTags applicationTags) {
+		return (registry) -> registry.config().commonTags(createTagsFrom(applicationTags));
+	}
+
+	private Iterable<Tag> createTagsFrom(ApplicationTags applicationTags) {
+		Map<String, String> tags = new HashMap<>();
 		PropertyMapper mapper = PropertyMapper.get().alwaysApplyingWhenNonNull();
-		mapper.from(applicationTags::getApplication).to((application) -> allTags.put("application", application));
-		mapper.from(applicationTags::getService).to((service) -> allTags.put("service", service));
-		mapper.from(applicationTags::getCluster).to((cluster) -> allTags.put("cluster", cluster));
-		mapper.from(applicationTags::getShard).to((shard) -> allTags.put("shard", shard));
+		mapper.from(applicationTags::getApplication).to((application) -> tags.put("application", application));
+		mapper.from(applicationTags::getService).to((service) -> tags.put("service", service));
+		mapper.from(applicationTags::getCluster).to((cluster) -> tags.put("cluster", cluster));
+		mapper.from(applicationTags::getShard).to((shard) -> tags.put("shard", shard));
 		if (applicationTags.getCustomTags() != null) {
-			allTags.putAll(applicationTags.getCustomTags());
+			tags.putAll(applicationTags.getCustomTags());
 		}
-		return MeterFilter.commonTags(Tags.of(allTags.entrySet().stream()
-				.map((entry) -> Tag.of(entry.getKey(), entry.getValue())).collect(Collectors.toList())));
+		return Tags.of(tags.entrySet().stream().map((entry) -> Tag.of(entry.getKey(), entry.getValue()))
+				.collect(Collectors.toList()));
 	}
 
 }

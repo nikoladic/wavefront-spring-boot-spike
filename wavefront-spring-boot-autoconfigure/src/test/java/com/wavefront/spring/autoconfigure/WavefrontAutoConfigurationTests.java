@@ -18,6 +18,7 @@ package com.wavefront.spring.autoconfigure;
 
 import java.util.function.Function;
 
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.common.application.ApplicationTags;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -25,11 +26,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.simple.SimpleMetricsExportAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.metrics.export.wavefront.WavefrontMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.AbstractApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link WavefrontAutoConfiguration}.
@@ -74,10 +77,10 @@ class WavefrontAutoConfigurationTests {
 	}
 
 	@Test
-	void applicationTagsAreExportedToRegistry() {
+	void applicationTagsAreExportedToWavefrontRegistry() {
 		this.contextRunner
 				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service")
-				.with(metrics()).run((context) -> {
+				.with(wavefrontMetrics()).run((context) -> {
 					MeterRegistry registry = context.getBean(MeterRegistry.class);
 					registry.counter("my.counter", "env", "qa");
 					assertThat(registry.find("my.counter").tags("env", "qa").tags("application", "test-app")
@@ -86,11 +89,11 @@ class WavefrontAutoConfigurationTests {
 	}
 
 	@Test
-	void applicationTagsWithFullInformationAreExportedToRegistry() {
+	void applicationTagsWithFullInformationAreExportedToWavefrontRegistry() {
 		this.contextRunner
 				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service",
 						"wavefront.application.cluster=test-cluster", "wavefront.application.shard=test-shard")
-				.with(metrics()).run((context) -> {
+				.with(wavefrontMetrics()).run((context) -> {
 					MeterRegistry registry = context.getBean(MeterRegistry.class);
 					registry.counter("my.counter", "env", "qa");
 					assertThat(registry.find("my.counter").tags("env", "qa").tags("application", "test-app")
@@ -99,11 +102,33 @@ class WavefrontAutoConfigurationTests {
 				});
 	}
 
+	@Test
+	void applicationTagsAreNotExportedToNonWavefrontRegistry() {
+		this.contextRunner
+				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service")
+				.with(metrics()).withConfiguration(AutoConfigurations.of(SimpleMetricsExportAutoConfiguration.class))
+				.run((context) -> {
+					MeterRegistry registry = context.getBean(MeterRegistry.class);
+					registry.counter("my.counter", "env", "qa");
+					assertThat(registry.find("my.counter").tags("env", "qa")).isNotNull();
+					assertThat(registry.find("my.counter").tags("env", "qa").tags("application", "test-app")
+							.tags("service", "test-service").tags("cluster", "test-cluster").tags("shard", "test-shard")
+							.counter()).isNull();
+				});
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends AbstractApplicationContextRunner<?, ?, ?>> Function<T, T> wavefrontMetrics() {
+		return (runner) -> (T) runner.withBean(WavefrontSender.class, () -> mock(WavefrontSender.class))
+				.withConfiguration(AutoConfigurations.of(WavefrontMetricsExportAutoConfiguration.class))
+				.with(metrics());
+	}
+
 	@SuppressWarnings("unchecked")
 	private static <T extends AbstractApplicationContextRunner<?, ?, ?>> Function<T, T> metrics() {
 		return (runner) -> (T) runner.withPropertyValues("management.metrics.use-global-registry=false")
 				.withConfiguration(AutoConfigurations.of(MetricsAutoConfiguration.class,
-						CompositeMeterRegistryAutoConfiguration.class, SimpleMetricsExportAutoConfiguration.class));
+						CompositeMeterRegistryAutoConfiguration.class));
 
 	}
 
