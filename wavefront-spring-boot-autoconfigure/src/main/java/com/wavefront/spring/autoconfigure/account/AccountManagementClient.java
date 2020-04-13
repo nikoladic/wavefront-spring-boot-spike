@@ -63,7 +63,9 @@ class AccountManagementClient {
 		URI requestUri = accountManagementUri(clusterUri, applicationTags);
 		this.logger.debug("Auto-negotiating Wavefront user account from " + requestUri);
 		try {
-			return parseAccountInfo(this.restTemplate.postForObject(requestUri, null, String.class));
+			String json = this.restTemplate.postForObject(requestUri, null, String.class);
+			Map<String, Object> content = new BasicJsonParser().parseMap(json);
+			return new AccountInfo((String) content.get("token"), (String) content.get("url"));
 		}
 		catch (HttpClientErrorException ex) {
 			throw new AccountManagementFailedException(ex.getResponseBodyAsString());
@@ -86,8 +88,10 @@ class AccountManagementClient {
 		headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + apiToken);
 		this.logger.debug("Retrieving existing account from " + requestUri);
 		try {
-			return parseAccountInfo(this.restTemplate
-					.exchange(requestUri, HttpMethod.GET, new HttpEntity<>(headers), String.class).getBody());
+			String json = this.restTemplate
+					.exchange(requestUri, HttpMethod.GET, new HttpEntity<>(headers), String.class).getBody();
+			Map<String, Object> content = new BasicJsonParser().parseMap(json);
+			return new AccountInfo(apiToken, (String) content.get("url"));
 		}
 		catch (HttpClientErrorException ex) {
 			throw new AccountManagementFailedException(ex.getResponseBodyAsString());
@@ -106,11 +110,6 @@ class AccountManagementClient {
 			uriComponentsBuilder.queryParam("shard", applicationTags.getShard());
 		}
 		return uriComponentsBuilder.build().toUri();
-	}
-
-	private AccountInfo parseAccountInfo(String json) {
-		Map<String, Object> content = new BasicJsonParser().parseMap(json);
-		return new AccountInfo((String) content.get("token"), (String) content.get("url"));
 	}
 
 }

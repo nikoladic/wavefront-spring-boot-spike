@@ -109,7 +109,7 @@ class AccountManagementClientTests {
 				.andExpect(method(HttpMethod.GET))
 				.andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer ee479a71-abcd-abcd-abcd-62b0e8416989"))
 				.andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
-						.body("{\"url\":\"/us/test123\",\"token\":\"ee479a71-abcd-abcd-abcd-62b0e8416989\"}\n"));
+						.body("{\"url\":\"/us/test123\"}\n"));
 		AccountInfo accountInfo = this.client.getExistingAccount("https://example.com", createDefaultApplicationTags(),
 				"ee479a71-abcd-abcd-abcd-62b0e8416989");
 		assertThat(accountInfo.getApiToken()).isEqualTo("ee479a71-abcd-abcd-abcd-62b0e8416989");
