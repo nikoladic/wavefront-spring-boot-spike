@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>com.wavefront.spring</groupId>
-		<artifactId>wavefront-spring-boot</artifactId>
+		<artifactId>wavefront-spring-boot-parent</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
 	</parent>
 	<artifactId>wavefront-spring-boot-starter</artifactId>
@@ -18,7 +18,7 @@
 		</dependency>
 		<dependency>
 			<groupId>com.wavefront.spring</groupId>
-			<artifactId>wavefront-spring-boot-autoconfigure</artifactId>
+			<artifactId>wavefront-spring-boot</artifactId>
 		</dependency>
 
 		<dependency>

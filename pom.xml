@@ -10,11 +10,11 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.wavefront.spring</groupId>
-	<artifactId>wavefront-spring-boot</artifactId>
+	<artifactId>wavefront-spring-boot-parent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
-	<name>Wavefront Spring Boot Starter</name>
-	<description>Spike on api token auto-negotiation</description>
+	<name>Wavefront Spring Boot</name>
+	<description>Wavefront by VMware integration for Spring Boot</description>
 
 	<properties>
 		<disable.checks>false</disable.checks>
@@ -25,7 +25,7 @@
 	</properties>
 
 	<modules>
-		<module>wavefront-spring-boot-autoconfigure</module>
+		<module>wavefront-spring-boot</module>
 		<module>wavefront-spring-boot-sample</module>
 		<module>wavefront-spring-boot-starter</module>
 	</modules>
@@ -140,7 +140,7 @@
 		<dependencies>
 			<dependency>
 				<groupId>com.wavefront.spring</groupId>
-				<artifactId>wavefront-spring-boot-autoconfigure</artifactId>
+				<artifactId>wavefront-spring-boot</artifactId>
 				<version>0.0.1-SNAPSHOT</version>
 			</dependency>
 			<dependency>
