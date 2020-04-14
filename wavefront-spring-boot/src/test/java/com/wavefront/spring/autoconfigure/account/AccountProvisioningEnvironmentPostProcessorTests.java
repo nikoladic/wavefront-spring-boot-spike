@@ -76,10 +76,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	@Test
 	void existingAccountIsConfiguredWhenApiTokenFileExists(CapturedOutput output) throws IOException {
-		Resource apiTokenResource = mock(Resource.class);
-		given(apiTokenResource.isReadable()).willReturn(true);
-		given(apiTokenResource.getInputStream())
-				.willReturn(new ByteArrayInputStream("abc-def".getBytes(StandardCharsets.UTF_8)));
+		Resource apiTokenResource = mockApiTokenResource("abc-def");
 		MockEnvironment environment = new MockEnvironment();
 		TestAccountProvisioning postProcessor = TestAccountProvisioning.forExistingAccount(apiTokenResource,
 				() -> new AccountInfo("abc-def", "/us/test1"));
@@ -97,12 +94,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	@Test
 	void existingAccountRetrievalFailureLogsWarning(CapturedOutput output) throws IOException {
-		Resource apiTokenResource = mock(Resource.class);
-		given(apiTokenResource.isReadable()).willReturn(true);
-		given(apiTokenResource.getInputStream())
-				.willReturn(new ByteArrayInputStream("abc-def".getBytes(StandardCharsets.UTF_8)));
-		MockEnvironment environment = new MockEnvironment();
-		environment.setProperty(URI_PROPERTY, "https://example.com");
+		Resource apiTokenResource = mockApiTokenResource("abc-def");
+		MockEnvironment environment = new MockEnvironment().withProperty(URI_PROPERTY, "https://example.com");
 		TestAccountProvisioning postProcessor = TestAccountProvisioning.forExistingAccount(apiTokenResource, () -> {
 			throw new AccountManagementFailedException("test message");
 		});
@@ -180,10 +173,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	@Test
 	void uriIsNotSetIfACustomUriIsSet() throws IOException {
-		Resource apiTokenResource = mock(Resource.class);
-		given(apiTokenResource.isReadable()).willReturn(true);
-		given(apiTokenResource.getInputStream())
-				.willReturn(new ByteArrayInputStream("abc-def".getBytes(StandardCharsets.UTF_8)));
+		Resource apiTokenResource = mockApiTokenResource("abc-def");
 		MockEnvironment environment = new MockEnvironment();
 		environment.setProperty(URI_PROPERTY, "https://example.com");
 		TestAccountProvisioning.forExistingAccount(apiTokenResource, () -> new AccountInfo("abc-def", "test"))
@@ -217,6 +207,14 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		new AccountProvisioningEnvironmentPostProcessor().getExistingAccount(client, clusterUri, applicationTags,
 				apiToken);
 		verify(client).getExistingAccount(clusterUri, applicationTags, apiToken);
+	}
+
+	private Resource mockApiTokenResource(String apiToken) throws IOException {
+		Resource apiTokenResource = mock(Resource.class);
+		given(apiTokenResource.isReadable()).willReturn(true);
+		given(apiTokenResource.getInputStream())
+				.willReturn(new ByteArrayInputStream(apiToken.getBytes(StandardCharsets.UTF_8)));
+		return apiTokenResource;
 	}
 
 	private ApplicationStartedEvent mockApplicationStartedEvent() {
