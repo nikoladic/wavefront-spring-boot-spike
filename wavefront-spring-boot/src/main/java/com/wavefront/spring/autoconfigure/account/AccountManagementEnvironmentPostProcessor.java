@@ -54,7 +54,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Stephane Nicoll
  */
-class AccountProvisioningEnvironmentPostProcessor
+class AccountManagementEnvironmentPostProcessor
 		implements EnvironmentPostProcessor, ApplicationListener<SpringApplicationEvent> {
 
 	private static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
@@ -88,7 +88,7 @@ class AccountProvisioningEnvironmentPostProcessor
 	@Override
 	public void onApplicationEvent(SpringApplicationEvent event) {
 		if (event instanceof ApplicationPreparedEvent) {
-			this.logger.switchTo(AccountProvisioningEnvironmentPostProcessor.class);
+			this.logger.switchTo(AccountManagementEnvironmentPostProcessor.class);
 		}
 		if (event instanceof ApplicationStartedEvent || event instanceof ApplicationFailedEvent) {
 			if (this.accountConfigurationOutcome != null) {

@@ -44,12 +44,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 /**
- * Tests for {@link AccountProvisioningEnvironmentPostProcessor}.
+ * Tests for {@link AccountManagementEnvironmentPostProcessor}.
  *
  * @author Stephane Nicoll
  */
 @ExtendWith(OutputCaptureExtension.class)
-class AccountProvisioningEnvironmentPostProcessorTests {
+class AccountManagementEnvironmentPostProcessorTests {
 
 	private static final String API_TOKEN_PROPERTY = "management.metrics.export.wavefront.api-token";
 
@@ -61,7 +61,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void accountProvisioningIsNotNeededWhenApiTokenExists() {
 		ConfigurableEnvironment environment = mock(ConfigurableEnvironment.class);
 		given(environment.getProperty(API_TOKEN_PROPERTY)).willReturn("test");
-		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
+		new AccountManagementEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
 		verify(environment).getProperty(API_TOKEN_PROPERTY);
 		verifyNoMoreInteractions(environment);
 	}
@@ -70,7 +70,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void accountProvisioningIsNotNeededWhenApiTokenIsNotNecessary() {
 		MockEnvironment environment = new MockEnvironment();
 		environment.setProperty(URI_PROPERTY, "proxy://example.com:2878");
-		new AccountProvisioningEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
+		new AccountManagementEnvironmentPostProcessor().postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isNull();
 	}
 
@@ -78,8 +78,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void existingAccountIsConfiguredWhenApiTokenFileExists(CapturedOutput output) throws IOException {
 		Resource apiTokenResource = mockApiTokenResource("abc-def");
 		MockEnvironment environment = new MockEnvironment();
-		TestAccountProvisioning postProcessor = TestAccountProvisioning.forExistingAccount(apiTokenResource,
-				() -> new AccountInfo("abc-def", "/us/test1"));
+		TestAccountManagementEnvironmentPostProcessor postProcessor = TestAccountManagementEnvironmentPostProcessor
+				.forExistingAccount(apiTokenResource, () -> new AccountInfo("abc-def", "/us/test1"));
 		postProcessor.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
@@ -96,9 +96,10 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 	void existingAccountRetrievalFailureLogsWarning(CapturedOutput output) throws IOException {
 		Resource apiTokenResource = mockApiTokenResource("abc-def");
 		MockEnvironment environment = new MockEnvironment().withProperty(URI_PROPERTY, "https://example.com");
-		TestAccountProvisioning postProcessor = TestAccountProvisioning.forExistingAccount(apiTokenResource, () -> {
-			throw new AccountManagementFailedException("test message");
-		});
+		TestAccountManagementEnvironmentPostProcessor postProcessor = TestAccountManagementEnvironmentPostProcessor
+				.forExistingAccount(apiTokenResource, () -> {
+					throw new AccountManagementFailedException("test message");
+				});
 		postProcessor.postProcessEnvironment(environment, this.application);
 		postProcessor.onApplicationEvent(mockApplicationStartedEvent());
 		assertThat(output)
@@ -111,8 +112,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		Path apiTokenFile = directory.resolve("test.token");
 		assertThat(apiTokenFile).doesNotExist();
 		MockEnvironment environment = new MockEnvironment();
-		TestAccountProvisioning postProcessor = TestAccountProvisioning.forNewAccount(new PathResource(apiTokenFile),
-				() -> new AccountInfo("abc-def", "/us/test"));
+		TestAccountManagementEnvironmentPostProcessor postProcessor = TestAccountManagementEnvironmentPostProcessor
+				.forNewAccount(new PathResource(apiTokenFile), () -> new AccountInfo("abc-def", "/us/test"));
 		postProcessor.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
@@ -133,9 +134,10 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		Resource apiTokenResource = mock(Resource.class);
 		given(apiTokenResource.isReadable()).willReturn(false);
 		MockEnvironment environment = new MockEnvironment();
-		TestAccountProvisioning postProcessor = TestAccountProvisioning.forNewAccount(apiTokenResource, () -> {
-			throw new AccountManagementFailedException("test message");
-		});
+		TestAccountManagementEnvironmentPostProcessor postProcessor = TestAccountManagementEnvironmentPostProcessor
+				.forNewAccount(apiTokenResource, () -> {
+					throw new AccountManagementFailedException("test message");
+				});
 		postProcessor.postProcessEnvironment(environment, this.application);
 		verify(apiTokenResource).isReadable();
 		verifyNoMoreInteractions(apiTokenResource);
@@ -152,7 +154,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		given(apiTokenResource.isFile()).willReturn(false);
 		given(apiTokenResource.getInputStream()).willThrow(new IOException("test exception"));
 		MockEnvironment environment = new MockEnvironment();
-		TestAccountProvisioning.forNewAccount(apiTokenResource, () -> new AccountInfo("test", "test"))
+		TestAccountManagementEnvironmentPostProcessor
+				.forNewAccount(apiTokenResource, () -> new AccountInfo("test", "test"))
 				.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
@@ -165,7 +168,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		given(apiTokenResource.isFile()).willReturn(true);
 		given(apiTokenResource.getFile()).willThrow(new IOException("test exception"));
 		MockEnvironment environment = new MockEnvironment();
-		TestAccountProvisioning.forNewAccount(apiTokenResource, () -> new AccountInfo("test", "test"))
+		TestAccountManagementEnvironmentPostProcessor
+				.forNewAccount(apiTokenResource, () -> new AccountInfo("test", "test"))
 				.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("test");
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://wavefront.surf");
@@ -176,7 +180,8 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		Resource apiTokenResource = mockApiTokenResource("abc-def");
 		MockEnvironment environment = new MockEnvironment();
 		environment.setProperty(URI_PROPERTY, "https://example.com");
-		TestAccountProvisioning.forExistingAccount(apiTokenResource, () -> new AccountInfo("abc-def", "test"))
+		TestAccountManagementEnvironmentPostProcessor
+				.forExistingAccount(apiTokenResource, () -> new AccountInfo("abc-def", "test"))
 				.postProcessEnvironment(environment, this.application);
 		assertThat(environment.getProperty(API_TOKEN_PROPERTY)).isEqualTo("abc-def");
 		assertThat(environment.getProperty(URI_PROPERTY)).isEqualTo("https://example.com");
@@ -185,7 +190,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 	@Test
 	void defaultApiTokenFile() {
-		Resource localApiTokenResource = new AccountProvisioningEnvironmentPostProcessor().getLocalApiTokenResource();
+		Resource localApiTokenResource = new AccountManagementEnvironmentPostProcessor().getLocalApiTokenResource();
 		assertThat(localApiTokenResource.getFilename()).isEqualTo(".wavefront_token");
 	}
 
@@ -194,7 +199,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		AccountManagementClient client = mock(AccountManagementClient.class);
 		String clusterUri = "https://example.com";
 		ApplicationTags applicationTags = mock(ApplicationTags.class);
-		new AccountProvisioningEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationTags);
+		new AccountManagementEnvironmentPostProcessor().provisionAccount(client, clusterUri, applicationTags);
 		verify(client).provisionAccount(clusterUri, applicationTags);
 	}
 
@@ -204,7 +209,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		String clusterUri = "https://example.com";
 		ApplicationTags applicationTags = mock(ApplicationTags.class);
 		String apiToken = "abc-def";
-		new AccountProvisioningEnvironmentPostProcessor().getExistingAccount(client, clusterUri, applicationTags,
+		new AccountManagementEnvironmentPostProcessor().getExistingAccount(client, clusterUri, applicationTags,
 				apiToken);
 		verify(client).getExistingAccount(clusterUri, applicationTags, apiToken);
 	}
@@ -221,7 +226,7 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 		return new ApplicationStartedEvent(this.application, new String[0], mock(ConfigurableApplicationContext.class));
 	}
 
-	static class TestAccountProvisioning extends AccountProvisioningEnvironmentPostProcessor {
+	static class TestAccountManagementEnvironmentPostProcessor extends AccountManagementEnvironmentPostProcessor {
 
 		private final Resource localApiTokenResource;
 
@@ -229,23 +234,23 @@ class AccountProvisioningEnvironmentPostProcessorTests {
 
 		private final Supplier<AccountInfo> existingAccount;
 
-		TestAccountProvisioning(Resource localApiTokenResource, Supplier<AccountInfo> existingAccount,
-				Supplier<AccountInfo> accountProvisioning) {
+		TestAccountManagementEnvironmentPostProcessor(Resource localApiTokenResource,
+				Supplier<AccountInfo> existingAccount, Supplier<AccountInfo> accountProvisioning) {
 			this.localApiTokenResource = localApiTokenResource;
 			this.existingAccount = existingAccount;
 			this.accountProvisioning = accountProvisioning;
 		}
 
-		static TestAccountProvisioning forExistingAccount(Resource localApiToResource,
+		static TestAccountManagementEnvironmentPostProcessor forExistingAccount(Resource localApiToResource,
 				Supplier<AccountInfo> existingAccount) {
-			return new TestAccountProvisioning(localApiToResource, existingAccount, () -> {
+			return new TestAccountManagementEnvironmentPostProcessor(localApiToResource, existingAccount, () -> {
 				throw new IllegalArgumentException("Should not be called");
 			});
 		}
 
-		static TestAccountProvisioning forNewAccount(Resource localApiToResource,
+		static TestAccountManagementEnvironmentPostProcessor forNewAccount(Resource localApiToResource,
 				Supplier<AccountInfo> accountProvisioning) {
-			return new TestAccountProvisioning(localApiToResource, () -> {
+			return new TestAccountManagementEnvironmentPostProcessor(localApiToResource, () -> {
 				throw new IllegalArgumentException("Should not be called");
 			}, accountProvisioning);
 		}
