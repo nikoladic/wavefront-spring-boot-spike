@@ -20,6 +20,10 @@
 			<groupId>com.wavefront.spring</groupId>
 			<artifactId>wavefront-spring-boot</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.wavefront</groupId>
+			<artifactId>wavefront-opentracing-sdk-java</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>io.micrometer</groupId>

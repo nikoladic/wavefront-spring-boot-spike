@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "wavefront.traces.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable traces.",
+      "defaultValue": true
+    }
+  ]
+}

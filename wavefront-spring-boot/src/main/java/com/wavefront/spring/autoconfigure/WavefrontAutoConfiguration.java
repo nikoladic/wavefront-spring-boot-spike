@@ -38,7 +38,7 @@ import org.springframework.context.annotation.Import;
 @Configuration
 @ConditionalOnClass(ApplicationTags.class)
 @EnableConfigurationProperties(WavefrontProperties.class)
-@Import(WavefrontMetricsConfiguration.class)
+@Import({ WavefrontMetricsConfiguration.class, WavefrontTracingConfiguration.class })
 public class WavefrontAutoConfiguration {
 
 	@Bean
