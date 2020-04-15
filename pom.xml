@@ -9,6 +9,33 @@
 	<packaging>pom</packaging>
 	<name>Wavefront Spring Boot</name>
 	<description>Wavefront by VMware integration for Spring Boot</description>
+	<url>https://www.wavefront.com</url>
+	<organization>
+		<name>VMware, Inc.</name>
+		<url>https://www.vmware.com</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0</url>
+		</license>
+	</licenses>
+	<scm>
+		<connection>scm:git:git@github.com:wavefrontHQ/wavefront-spring-boot.git
+		</connection>
+		<developerConnection>
+			scm:git:git@github.com:wavefrontHQ/wavefront-spring-boot.git
+		</developerConnection>
+		<url>git@github.com:wavefrontHQ/wavefront-spring-boot.git</url>
+	</scm>
+	<developers>
+		<developer>
+			<name>Clement Pang</name>
+			<email>clement@wavefront.com</email>
+			<organization>Wavefront</organization>
+			<organizationUrl>https://www.wavefront.com</organizationUrl>
+		</developer>
+	</developers>
 
 	<properties>
 		<disable.checks>false</disable.checks>
