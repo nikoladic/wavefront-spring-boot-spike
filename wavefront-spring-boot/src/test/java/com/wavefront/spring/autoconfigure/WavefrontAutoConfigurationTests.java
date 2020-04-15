@@ -102,7 +102,8 @@ class WavefrontAutoConfigurationTests {
 	@Test
 	void applicationTagsAreExportedToWavefrontRegistry() {
 		this.contextRunner
-				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service")
+				.withPropertyValues("wavefront.tracing.enabled=false", "wavefront.application.name=test-app",
+						"wavefront.application.service=test-service")
 				.with(wavefrontMetrics(() -> mock(WavefrontSender.class))).run((context) -> {
 					MeterRegistry registry = context.getBean(MeterRegistry.class);
 					registry.counter("my.counter", "env", "qa");
@@ -114,8 +115,9 @@ class WavefrontAutoConfigurationTests {
 	@Test
 	void applicationTagsWithFullInformationAreExportedToWavefrontRegistry() {
 		this.contextRunner
-				.withPropertyValues("wavefront.application.name=test-app", "wavefront.application.service=test-service",
-						"wavefront.application.cluster=test-cluster", "wavefront.application.shard=test-shard")
+				.withPropertyValues("wavefront.tracing.enabled=false", "wavefront.application.name=test-app",
+						"wavefront.application.service=test-service", "wavefront.application.cluster=test-cluster",
+						"wavefront.application.shard=test-shard")
 				.with(wavefrontMetrics(() -> mock(WavefrontSender.class))).run((context) -> {
 					MeterRegistry registry = context.getBean(MeterRegistry.class);
 					registry.counter("my.counter", "env", "qa");
@@ -156,7 +158,7 @@ class WavefrontAutoConfigurationTests {
 
 	@Test
 	void tracerCanBeDisabled() {
-		this.contextRunner.withPropertyValues("wavefront.traces.enabled=false")
+		this.contextRunner.withPropertyValues("wavefront.tracing.enabled=false")
 				.with(wavefrontMetrics(() -> mock(WavefrontSender.class)))
 				.run((context) -> assertThat(context).doesNotHaveBean(Tracer.class));
 	}

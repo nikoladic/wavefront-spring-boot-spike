@@ -36,7 +36,7 @@ import org.springframework.context.annotation.Bean;
  * @author Stephane Nicoll
  */
 @ConditionalOnClass({ Reporter.class, Tracer.class })
-@ConditionalOnProperty(value = "wavefront.traces.enabled", matchIfMissing = true)
+@ConditionalOnProperty(value = "wavefront.tracing.enabled", matchIfMissing = true)
 class WavefrontTracingConfiguration {
 
 	@Bean
